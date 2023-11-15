@@ -226,8 +226,14 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        self._W = None
-        self._b = None
+        
+        # Z = XW + B
+        # X: batch_size, n_in
+        # W: n_in, n_out
+        # B: batch_size, n_out
+        
+        self._W = xavier_init((n_in, n_out))
+        self._b = xavier_init((batch_size, n_out))
 
         self._cache_current = None
         self._grad_W_current = None
@@ -253,7 +259,11 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        z = x @ self._W + self._b
+
+        # self._cache_current = ???
+
+        return z
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -276,8 +286,25 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        
+        # X: batch_size, n_in
+        # W: n_in, n_out
+        # B: batch_size, n_out
+        # grad_z: batch_size, n_out
 
+        # grad_w: n_in, n_out
+        # grad_w = x.T @ grad_z
+        self._grad_W_current = x.T @ grad_z
+
+        # grad_b: batch_size, n_out
+        # grad_b = grad_z
+        self._grad_b_current = grad_z
+
+        # grad_x: batch_size, n_in
+        # grad_x = grad_z @ W.T
+        grad_x = grad_z @ W.T
+
+        return grad_x
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -293,7 +320,8 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        self._W = self._W - learning_rate * self._grad_W_current
+        self._b = self._b - learning_rate * self._grad_b_current
 
         #######################################################################
         #                       ** END OF YOUR CODE **
