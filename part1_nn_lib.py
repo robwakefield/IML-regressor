@@ -120,7 +120,14 @@ class SigmoidLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        
+        # x: batch_size, n_in
+        # z: batch_size, n_out (n_in == n_out)
+        # z = g(x)
+
+        z = 1 / (1 + np.exp(-x))
+        self._cache_current = z
+        return z
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -143,7 +150,21 @@ class SigmoidLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        
+        # x: batch_size, n_in
+        # z: batch_size, n_out (n_in == n_out)
+        # z = g(x)
+        
+        # grad_x (dL/dx): batch_size, n_in
+        # grad_z (dL/dz): batch_size, n_out (n_in == n_out)
+        # g'(x) (dz/dx): (4d tensor??) 
+        
+        # g'(x) = g(x)(1 - g(x)) = z(1 - z)
+        # dL/dx = dL/dz * g'(x)
+        dz_dx = self._cache_current * (1 - self._cache_current)
+        grad_x = grad_z * dz_dx
+
+        return grad_x
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -177,7 +198,14 @@ class ReluLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        
+        # x: batch_size, n_in
+        # z: batch_size, n_out (n_in == n_out)
+        # z = g(x)
+
+        z = np.max(0, x)
+        self._cache_current = x
+        return z
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -200,7 +228,21 @@ class ReluLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        
+        # x: batch_size, n_in
+        # z: batch_size, n_out (n_in == n_out)
+        # z = g(x)
+        
+        # grad_x (dL/dx): batch_size, n_in
+        # grad_z (dL/dz): batch_size, n_out (n_in == n_out)
+        # g'(x) (dz/dx): (4d tensor??) 
+        
+        # g'(x) = (x > 0)
+        # dL/dx = dL/dz * g'(x)
+        dz_dx = (x > 0)
+        grad_x = grad_z * dz_dx
+
+        return grad_x
 
         #######################################################################
         #                       ** END OF YOUR CODE **
