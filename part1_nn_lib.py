@@ -233,7 +233,8 @@ class LinearLayer(Layer):
         # B: batch_size, n_out
         
         self._W = xavier_init((n_in, n_out))
-        self._b = xavier_init((batch_size, n_out))
+        # self._b = xavier_init((batch_size, n_out))
+        self._b = np.zeros((1, n_out))
 
         self._cache_current = None
         self._grad_W_current = None
@@ -259,9 +260,11 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        z = x @ self._W + self._b
+        batch_size = x.shape[0]
+        batch_b = np.tile(self._b, (batch_size, 1))
+        z = x @ self._W + batch_b
 
-        # self._cache_current = ???
+        self._cache_current = x
 
         return z
 
@@ -292,17 +295,19 @@ class LinearLayer(Layer):
         # B: batch_size, n_out
         # grad_z: batch_size, n_out
 
+        batch_size = grad_z.shape[0]
+
         # grad_w: n_in, n_out
         # grad_w = x.T @ grad_z
-        self._grad_W_current = x.T @ grad_z
+        self._grad_W_current = self._cache_current.T @ grad_z
 
-        # grad_b: batch_size, n_out
+        # grad_b: 1, n_out
         # grad_b = grad_z
-        self._grad_b_current = grad_z
+        self._grad_b_current = np.ones((1, batch_size)) @ grad_z
 
         # grad_x: batch_size, n_in
         # grad_x = grad_z @ W.T
-        grad_x = grad_z @ W.T
+        grad_x = grad_z @ self._W.T
 
         return grad_x
         #######################################################################
