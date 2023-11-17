@@ -203,7 +203,7 @@ class ReluLayer(Layer):
         # z: batch_size, n_out (n_in == n_out)
         # z = g(x)
 
-        z = np.max(0, x)
+        z = np.maximum(0, x)
         self._cache_current = x
         return z
 
@@ -239,7 +239,7 @@ class ReluLayer(Layer):
         
         # g'(x) = (x > 0)
         # dL/dx = dL/dz * g'(x)
-        dz_dx = (x > 0)
+        dz_dx = (self._cache_current > 0)
         grad_x = grad_z * dz_dx
 
         return grad_x
