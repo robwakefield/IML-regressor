@@ -388,8 +388,8 @@ class MultiLayerNetwork(object):
         Arguments:
             - input_dim {int} -- Number of features in the input (excluding 
                 the batch dimension).
-            - neurons {list} -- Number of neurons in each linear layer 
-                represented as a list. The length of the list determines the 
+            - neurons {list} -- Number of neurons in each linear layer 
+                represented as a list. The length of the list determines the 
                 number of linear layers.
             - activations {list} -- List of the activation functions to apply 
                 to the output of each linear layer.
@@ -401,7 +401,18 @@ class MultiLayerNetwork(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        self._layers = None
+        self._layers = []
+        for i in range(len(neurons)):
+            if i == 0:
+                self._layers.append(LinearLayer(input_dim, neurons[0]))
+            else:
+                self._layers.append(LinearLayer(neurons[i - 1], neurons[i]))
+            if activations[i] == "sigmoid":
+                self._layers.append(SigmoidLayer())
+            elif activations[i] == "relu":
+                self._layers.append(ReluLayer())
+            else:
+                raise ValueError(f"Unknown activation: {activations[i]}")
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -420,7 +431,10 @@ class MultiLayerNetwork(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        return np.zeros((1, self.neurons[-1])) # Replace with your own code
+        curr = x
+        for layer in self._layers:
+            curr = layer(curr)
+        return curr
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -444,8 +458,10 @@ class MultiLayerNetwork(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        curr = grad_z
+        for layer in reversed(self._layers):
+            curr = layer.backward(curr)
+        return curr
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -461,7 +477,10 @@ class MultiLayerNetwork(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        for layer in self._layers:
+            if isinstance(layer, LinearLayer):
+                layer.update_params(learning_rate)
+
 
         #######################################################################
         #                       ** END OF YOUR CODE **
