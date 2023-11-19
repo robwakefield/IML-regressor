@@ -59,6 +59,8 @@ class Regressor():
 
         # Replace this code with your own
         # Return preprocessed x and y, return None for y if it was None
+        # TODO: Might be better to set to default value
+        x.fillna(method='ffill', inplace=True) 
         return x, (y if isinstance(y, pd.DataFrame) else None)
 
         #######################################################################
