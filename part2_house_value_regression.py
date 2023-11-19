@@ -78,10 +78,18 @@ class Regressor():
         # Merge x and discretized ocean proximities
         merged = pd.merge(x, discretized, left_index=True, right_index=True)
 
-        # Convert pd DataFrame to torch.tensor
-        t = torch.from_numpy(merged.to_numpy())
+        # Convert x to torch.tensor
+        t_x = torch.from_numpy(merged.to_numpy())
 
-        return t, (y if isinstance(y, pd.DataFrame) else None)
+        if isinstance(y, pd.DataFrame):
+            # Fill Na values in y
+            # TODO: Is 0 the best value to fill here?
+            y = y.fillna(value=0.0)
+            
+            # Convert y to torch.tensor
+            t_y = torch.from_numpy(y.to_numpy())
+
+        return t_x, (t_y if isinstance(y, pd.DataFrame) else None)
 
         #######################################################################
         #                       ** END OF YOUR CODE **
