@@ -72,14 +72,16 @@ class Regressor():
         ocean_classes = lb.classes_
         discretized = pd.DataFrame(lb.transform(x["ocean_proximity"]), columns=ocean_classes, dtype=np.float64)
 
-        # Remove ocean_proximity from original dataframe
+        # Remove ocean_proximity from original DataFrame
         x = x.drop(["ocean_proximity"], axis=1)
 
         # Merge x and discretized ocean proximities
         merged = pd.merge(x, discretized, left_index=True, right_index=True)
-        print(merged.dtypes)
 
-        return x, (y if isinstance(y, pd.DataFrame) else None)
+        # Convert pd DataFrame to torch.tensor
+        t = torch.from_numpy(merged.to_numpy())
+
+        return t, (y if isinstance(y, pd.DataFrame) else None)
 
         #######################################################################
         #                       ** END OF YOUR CODE **
