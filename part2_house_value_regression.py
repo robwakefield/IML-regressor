@@ -2,6 +2,7 @@ import torch
 import pickle
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import LabelBinarizer
 
 class Regressor():
 
@@ -59,8 +60,25 @@ class Regressor():
 
         # Replace this code with your own
         # Return preprocessed x and y, return None for y if it was None
-        # TODO: Might be better to set to default value
-        x.fillna(method='ffill', inplace=True) 
+        
+        # Fill Na values with default value
+        # TODO: Might be better to set to default value than 'forward-fill'
+        x = x.fillna(method='ffill')
+
+        # Convert ocean_proximity to separate columns
+        lb = LabelBinarizer()
+        lb.fit(x["ocean_proximity"])
+        # TODO: Should we store this in class somewhere?
+        ocean_classes = lb.classes_
+        discretized = pd.DataFrame(lb.transform(x["ocean_proximity"]), columns=ocean_classes, dtype=np.float64)
+
+        # Remove ocean_proximity from original dataframe
+        x = x.drop(["ocean_proximity"], axis=1)
+
+        # Merge x and discretized ocean proximities
+        merged = pd.merge(x, discretized, left_index=True, right_index=True)
+        print(merged.dtypes)
+
         return x, (y if isinstance(y, pd.DataFrame) else None)
 
         #######################################################################
