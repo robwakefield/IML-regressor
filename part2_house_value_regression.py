@@ -3,6 +3,7 @@ import pickle
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelBinarizer
+from torch import nn
 
 class Regressor():
 
@@ -29,6 +30,16 @@ class Regressor():
         self.input_size = X.shape[1]
         self.output_size = 1
         self.nb_epoch = nb_epoch 
+        
+        # Define NN structure
+        self.nn_stack = nn.Sequential(
+            nn.Linear(self.input_size, 20),
+            nn.ReLU(),
+            nn.Linear(20, self.output_size),
+        )
+
+        print("NN Structure:"
+        print(self.nn_stack)
         return
 
         #######################################################################
@@ -79,7 +90,9 @@ class Regressor():
         merged = pd.merge(x, discretized, left_index=True, right_index=True)
 
         # Convert x to torch.tensor
-        t_x = torch.from_numpy(merged.to_numpy())
+        t_x = torch.from_numpy(merged.to_numpy()).to(torch.float32)
+        
+        # TODO: Normalise x
 
         if isinstance(y, pd.DataFrame):
             # Fill Na values in y
@@ -87,7 +100,7 @@ class Regressor():
             y = y.fillna(value=0.0)
             
             # Convert y to torch.tensor
-            t_y = torch.from_numpy(y.to_numpy())
+            t_y = torch.from_numpy(y.to_numpy()).to(torch.float32)
 
         return t_x, (t_y if isinstance(y, pd.DataFrame) else None)
 
