@@ -88,6 +88,9 @@ class Regressor():
         # Remove ocean_proximity from original DataFrame
         x = x.drop(["ocean_proximity"], axis=1)
 
+        # Mean normalise (columnwise)
+        x = (x - x.mean()) / x.std()
+
         # Merge x and discretized ocean proximities
         merged = pd.merge(x, discretized, left_index=True, right_index=True)
 
@@ -141,7 +144,7 @@ class Regressor():
 
             # Compute the loss based on this forward pass.
             loss = loss_fn(pred_Y, Y)
-            if e < 10 or e % 100 == 0:
+            if self.nb_epoch <= 10 or e % 100 == 0:
                 print(f'Epoch {e}, Loss: {loss.item()}')
 
             # Perform backwards pass to compute gradients of loss with respect to parameters of the model.
@@ -283,7 +286,7 @@ def example_main():
     # This example trains on the whole available dataset. 
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
-    regressor = Regressor(x_train, nb_epoch = 1000, learning_rate=0.001)
+    regressor = Regressor(x_train, nb_epoch = 1000)
     regressor.fit(x_train, y_train)
     save_regressor(regressor)
 
