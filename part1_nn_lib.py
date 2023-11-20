@@ -434,6 +434,8 @@ class MultiLayerNetwork(object):
         curr = x
         for layer in self._layers:
             curr = layer(curr)
+            # print("In forward:")
+            # print(layer, curr)
         return curr
 
         #######################################################################
@@ -461,6 +463,8 @@ class MultiLayerNetwork(object):
         curr = grad_z
         for layer in reversed(self._layers):
             curr = layer.backward(curr)
+            # print("In forward:")
+            # print(layer, curr)
         return curr
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -480,8 +484,6 @@ class MultiLayerNetwork(object):
         for layer in self._layers:
             if isinstance(layer, LinearLayer):
                 layer.update_params(learning_rate)
-
-
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -541,7 +543,13 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        self._loss_layer = None
+        if loss_fun == "mse":
+            self._loss_layer = MSELossLayer()
+        elif loss_fun == "cross_entropy":
+            self._loss_layer = CrossEntropyLossLayer()
+        else:
+            raise ValueError(f"Unknown loss function: {loss_fun}")
+        
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -564,7 +572,8 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        indices = np.random.permutation(len(input_dataset))
+        return input_dataset[indices], target_dataset[indices]
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -593,7 +602,27 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        for epoch in range(self.nb_epoch):
+            if self.shuffle_flag:
+                input_dataset, target_dataset = self.shuffle(input_dataset, target_dataset)
+            
+            # Split into batches
+            for i in range(0, len(input_dataset), self.batch_size):
+                inputs_batch = input_dataset[i:i + self.batch_size]
+                targets_batch = target_dataset[i:i + self.batch_size]
+
+                # Forward pass
+                outputs = self.network(inputs_batch)
+
+                # Compute loss
+                loss = self._loss_layer.forward(outputs, targets_batch)
+
+                # Backward pass
+                grad_loss_wrt_outputs = self._loss_layer.backward()
+                grad_loss_wrt_inputs = self.network.backward(grad_loss_wrt_outputs)
+
+                # Update parameters
+                self.network.update_params(self.learning_rate)
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -616,7 +645,8 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        outputs = self.network(input_dataset)
+        return self._loss_layer.forward(outputs, target_dataset)
 
         #######################################################################
         #                       ** END OF YOUR CODE **
