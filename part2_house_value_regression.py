@@ -2,7 +2,11 @@ import torch
 import pickle
 import numpy as np
 import pandas as pd
+from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.preprocessing import LabelBinarizer
+from sklearn.model_selection import cross_val_score, GridSearchCV
+from sklearn.utils.estimator_checks import check_estimator
+from sklearn.utils.validation import check_X_y, check_array
 from torch import nn
 
 class Regressor():
@@ -251,9 +255,28 @@ def load_regressor():
     print("\nLoaded model in part2_model.pickle\n")
     return trained_model
 
+class RegressorAdaptor(BaseEstimator, RegressorMixin):
+    def __init__(self, regressor, x_columns, y_columns, learning_rate=10):
+        self.regressor = regressor
+        self.learning_rate = learning_rate
+        self.x_columns = x_columns
+        self.y_columns = y_columns
+        
+    def fit(self, x, y):
+        x = pd.DataFrame(x, columns=self.x_columns)
+        y = pd.DataFrame(y, columns=self.y_columns)
+        return self.regressor.fit(x, y)
 
+    def predict(self, x):
+        x = pd.DataFrame(x, columns=self.x_columns)
+        return self.regressor.predict(x)
 
-def RegressorHyperParameterSearch(): 
+    def score(self, x, y):
+        x = pd.DataFrame(x, columns=self.x_columns)
+        y = pd.DataFrame(y, columns=self.y_columns)
+        return self.regressor.score(x, y)
+
+def RegressorHyperParameterSearch(regressor, x_train, y_train): 
     # Ensure to add whatever inputs you deem necessary to this function
     """
     Performs a hyper-parameter for fine-tuning the regressor implemented 
@@ -270,6 +293,28 @@ def RegressorHyperParameterSearch():
     #######################################################################
     #                       ** START OF YOUR CODE **
     #######################################################################
+    # Create scikit-learn estimator
+    x_columns = x_train.columns
+    y_columns = y_train.columns
+    x_train_np = x_train.to_numpy()
+    y_train_np = y_train.to_numpy()
+    regressor = RegressorAdaptor(Regressor(x_train), x_columns, y_columns)
+
+    # Define hyperparameter we can optimise
+    param_grid = {
+        'learning_rate': [0.0001, 0.001, 0.01, 0.1, 1, 10],
+    }
+
+    # check_estimator(regressor)
+
+    grid_search = GridSearchCV(estimator=regressor, param_grid=param_grid, scoring='neg_mean_squared_error', cv=10)
+
+    grid_search.fit(x_train_np, y_train_np)
+
+    best_model = grid_search.best_estimator_
+
+    print('Best Model After Cross Validation')
+    print(best_model)
 
     return  # Return the chosen hyper parameters
 
@@ -299,6 +344,8 @@ def example_main():
     regressor = Regressor(x_train, nb_epoch = 1000, learning_rate=10)
     regressor.fit(x_train, y_train)
     save_regressor(regressor)
+
+    RegressorHyperParameterSearch(regressor, x_train, y_train)
 
     # Error
     error = regressor.score(x_train, y_train)
