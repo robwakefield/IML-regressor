@@ -2,10 +2,12 @@ import torch
 import pickle
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import LabelBinarizer
+from torch import nn
 
 class Regressor():
 
-    def __init__(self, x, nb_epoch = 1000):
+    def __init__(self, x, nb_epoch = 1000, learning_rate=1e-6):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -27,7 +29,23 @@ class Regressor():
         X, _ = self._preprocessor(x, training = True)
         self.input_size = X.shape[1]
         self.output_size = 1
+        self.hidden_size = 20
         self.nb_epoch = nb_epoch 
+        self.learning_rate = learning_rate
+        
+        # Define NN structure
+        self.model = nn.Sequential(
+            nn.Linear(self.input_size, self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.output_size),
+        )
+
+        # Define MSE loss func and Gradient Descent optimizer
+        self.loss_fn = nn.MSELoss()
+        self.optim = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=0.9)
+
+        print("NN Model:")
+        print(self.model)
         return
 
         #######################################################################
@@ -59,7 +77,41 @@ class Regressor():
 
         # Replace this code with your own
         # Return preprocessed x and y, return None for y if it was None
-        return x, (y if isinstance(y, pd.DataFrame) else None)
+        
+        # Fill Na values with default value
+        # TODO: Might be better to set to default value than 'forward-fill'
+        x = x.fillna(method='ffill')
+
+        # Convert ocean_proximity to separate columns
+        lb = LabelBinarizer()
+        lb.fit(x["ocean_proximity"])
+        # TODO: Should we store this in class somewhere?
+        ocean_classes = lb.classes_
+        discretized = pd.DataFrame(lb.transform(x["ocean_proximity"]), columns=ocean_classes, dtype=np.float64)
+
+        # Remove ocean_proximity from original DataFrame
+        x = x.drop(["ocean_proximity"], axis=1)
+
+        # Mean normalise (columnwise)
+        x = (x - x.mean()) / x.std()
+
+        # Merge x and discretized ocean proximities
+        merged = pd.merge(x, discretized, left_index=True, right_index=True)
+
+        # Convert x to torch.tensor
+        t_x = torch.from_numpy(merged.to_numpy()).to(torch.float32)
+        
+        # TODO: Normalise x
+
+        if isinstance(y, pd.DataFrame):
+            # Fill Na values in y
+            # TODO: Is 0 the best value to fill here?
+            y = y.fillna(value=0.0)
+            
+            # Convert y to torch.tensor
+            t_y = torch.from_numpy(y.to_numpy()).to(torch.float32)
+
+        return t_x, (t_y if isinstance(y, pd.DataFrame) else None)
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -85,6 +137,27 @@ class Regressor():
         #######################################################################
 
         X, Y = self._preprocessor(x, y = y, training = True) # Do not forget
+        
+        for e in range(self.nb_epoch):
+            # Perform forward pass though the model given the input.
+            pred_Y = self.model(X)
+
+            # Compute the loss based on this forward pass.
+            loss = self.loss_fn(pred_Y, Y)
+            if self.nb_epoch <= 10 or e % 100 == 0:
+                print(f'Epoch {e}, Loss: {loss.item()}')
+
+            # Perform backwards pass to compute gradients of loss with respect to parameters of the model.
+            self.model.zero_grad()
+            loss.backward()
+
+            #TODO: torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+
+            # Perform one step of gradient descent on the model parameters.
+            self.optim.step()
+
+            # You are free to implement any additional steps to improve learning (batch-learning, shuffling...).
+
         return self
 
         #######################################################################
@@ -110,7 +183,7 @@ class Regressor():
         #######################################################################
 
         X, _ = self._preprocessor(x, training = False) # Do not forget
-        pass
+        return self.model(X).detach().numpy()
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -135,7 +208,12 @@ class Regressor():
         #######################################################################
 
         X, Y = self._preprocessor(x, y = y, training = False) # Do not forget
-        return 0 # Replace this code with your own
+
+        # TODO: Is there a reason to use predict(x) here?
+        pred_Y = self.model(X)
+        loss = self.loss_fn(pred_Y, Y)
+        
+        return torch.sqrt(loss).item() # Returns sqrt(MSE)
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -207,7 +285,7 @@ def example_main():
     # This example trains on the whole available dataset. 
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
-    regressor = Regressor(x_train, nb_epoch = 10)
+    regressor = Regressor(x_train, nb_epoch = 1000)
     regressor.fit(x_train, y_train)
     save_regressor(regressor)
 
