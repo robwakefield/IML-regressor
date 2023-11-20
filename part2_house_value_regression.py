@@ -40,6 +40,10 @@ class Regressor():
             nn.Linear(self.hidden_size, self.output_size),
         )
 
+        # Define MSE loss func and Gradient Descent optimizer
+        self.loss_fn = nn.MSELoss()
+        self.optim = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=0.9)
+
         print("NN Model:")
         print(self.model)
         return
@@ -134,16 +138,12 @@ class Regressor():
 
         X, Y = self._preprocessor(x, y = y, training = True) # Do not forget
         
-        # Define MSE loss func and Gradient Descent optimizer
-        loss_fn = nn.MSELoss()
-        optim = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=0.9)
-
         for e in range(self.nb_epoch):
             # Perform forward pass though the model given the input.
             pred_Y = self.model(X)
 
             # Compute the loss based on this forward pass.
-            loss = loss_fn(pred_Y, Y)
+            loss = self.loss_fn(pred_Y, Y)
             if self.nb_epoch <= 10 or e % 100 == 0:
                 print(f'Epoch {e}, Loss: {loss.item()}')
 
@@ -154,15 +154,9 @@ class Regressor():
             #TODO: torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
 
             # Perform one step of gradient descent on the model parameters.
-            optim.step()
+            self.optim.step()
 
             # You are free to implement any additional steps to improve learning (batch-learning, shuffling...).
-
-        pred_Y = self.model(X)
-        loss = loss_fn(pred_Y, Y)
-        print("Expected:", Y)
-        print("Actual:", pred_Y)
-        print("Final Loss:", loss.item())
 
         return self
 
@@ -189,7 +183,7 @@ class Regressor():
         #######################################################################
 
         X, _ = self._preprocessor(x, training = False) # Do not forget
-        pass
+        return self.model(X)
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -214,7 +208,12 @@ class Regressor():
         #######################################################################
 
         X, Y = self._preprocessor(x, y = y, training = False) # Do not forget
-        return 0 # Replace this code with your own
+
+        # TODO: Is there a reason to use predict(x) here?
+        pred_Y = self.model(X)
+        loss = self.loss_fn(pred_Y, Y)
+        
+        return torch.sqrt(loss).item() # Returns sqrt(MSE)
 
         #######################################################################
         #                       ** END OF YOUR CODE **
