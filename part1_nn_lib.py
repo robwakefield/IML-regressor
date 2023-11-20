@@ -673,8 +673,8 @@ class Preprocessor(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        self.min_vals = np.min(data.shape[0])
-        self.max_vals = np.max(data.shape[0])
+        self.min_vals = np.min(data)
+        self.max_vals = np.max(data)
 
         #######################################################################
         #                       ** END OF YOUR CODE **
