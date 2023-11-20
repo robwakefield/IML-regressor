@@ -183,7 +183,7 @@ class Regressor():
         #######################################################################
 
         X, _ = self._preprocessor(x, training = False) # Do not forget
-        return self.model(X)
+        return self.model(X).detach().numpy()
 
         #######################################################################
         #                       ** END OF YOUR CODE **
