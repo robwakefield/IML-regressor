@@ -411,6 +411,8 @@ class MultiLayerNetwork(object):
                 self._layers.append(SigmoidLayer())
             elif activations[i] == "relu":
                 self._layers.append(ReluLayer())
+            elif activations[i] == "identity":
+                continue
             else:
                 raise ValueError(f"Unknown activation: {activations[i]}")
         #######################################################################
@@ -572,7 +574,7 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        indices = np.random.permutation(len(input_dataset))
+        indices = np.random.permutation(input_dataset.shape[0])
         return input_dataset[indices], target_dataset[indices]
 
         #######################################################################
@@ -607,7 +609,7 @@ class Trainer(object):
                 input_dataset, target_dataset = self.shuffle(input_dataset, target_dataset)
             
             # Split into batches
-            for i in range(0, len(input_dataset), self.batch_size):
+            for i in range(0, input_dataset.shape[0], self.batch_size):
                 inputs_batch = input_dataset[i:i + self.batch_size]
                 targets_batch = target_dataset[i:i + self.batch_size]
 
