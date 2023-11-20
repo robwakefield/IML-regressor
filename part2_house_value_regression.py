@@ -7,6 +7,14 @@ from torch import nn
 
 class Regressor():
 
+    def init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            # Init weights using xavier
+            torch.nn.init.xavier_uniform_(m.weight)
+            if m.bias is not None:
+                # Set bias to 0
+                torch.nn.init.zeros_(m.bias)
+
     def __init__(self, x, nb_epoch = 1000, learning_rate=1e-6):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
@@ -39,6 +47,9 @@ class Regressor():
             nn.ReLU(),
             nn.Linear(self.hidden_size, self.output_size),
         )
+
+        # Initialise weights using xavier and set bias to 0
+        self.model.apply(self.init_weights)
 
         # Define MSE loss func and Gradient Descent optimizer
         self.loss_fn = nn.MSELoss()
@@ -209,11 +220,10 @@ class Regressor():
 
         X, Y = self._preprocessor(x, y = y, training = False) # Do not forget
 
-        # TODO: Is there a reason to use predict(x) here?
         pred_Y = self.model(X)
         loss = self.loss_fn(pred_Y, Y)
         
-        return torch.sqrt(loss).item() # Returns sqrt(MSE)
+        return torch.sqrt(loss).item()
 
         #######################################################################
         #                       ** END OF YOUR CODE **
