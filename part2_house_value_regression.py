@@ -7,7 +7,7 @@ from torch import nn
 
 class Regressor():
 
-    def __init__(self, x, nb_epoch = 1000):
+    def __init__(self, x, nb_epoch = 1000, learning_rate=1e-6):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -29,17 +29,19 @@ class Regressor():
         X, _ = self._preprocessor(x, training = True)
         self.input_size = X.shape[1]
         self.output_size = 1
+        self.hidden_size = 20
         self.nb_epoch = nb_epoch 
+        self.learning_rate = learning_rate
         
         # Define NN structure
-        self.nn_stack = nn.Sequential(
-            nn.Linear(self.input_size, 20),
+        self.model = nn.Sequential(
+            nn.Linear(self.input_size, self.hidden_size),
             nn.ReLU(),
-            nn.Linear(20, self.output_size),
+            nn.Linear(self.hidden_size, self.output_size),
         )
 
-        print("NN Structure:"
-        print(self.nn_stack)
+        print("NN Model:")
+        print(self.model)
         return
 
         #######################################################################
@@ -128,6 +130,37 @@ class Regressor():
         #######################################################################
 
         X, Y = self._preprocessor(x, y = y, training = True) # Do not forget
+        
+        # Define MSE loss func and Gradient Descent optimizer
+        loss_fn = nn.MSELoss()
+        optim = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=0.9)
+
+        for e in range(self.nb_epoch):
+            # Perform forward pass though the model given the input.
+            pred_Y = self.model(X)
+
+            # Compute the loss based on this forward pass.
+            loss = loss_fn(pred_Y, Y)
+            if e < 10 or e % 100 == 0:
+                print(f'Epoch {e}, Loss: {loss.item()}')
+
+            # Perform backwards pass to compute gradients of loss with respect to parameters of the model.
+            self.model.zero_grad()
+            loss.backward()
+
+            #TODO: torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+
+            # Perform one step of gradient descent on the model parameters.
+            optim.step()
+
+            # You are free to implement any additional steps to improve learning (batch-learning, shuffling...).
+
+        pred_Y = self.model(X)
+        loss = loss_fn(pred_Y, Y)
+        print("Expected:", Y)
+        print("Actual:", pred_Y)
+        print("Final Loss:", loss.item())
+
         return self
 
         #######################################################################
@@ -250,7 +283,7 @@ def example_main():
     # This example trains on the whole available dataset. 
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
-    regressor = Regressor(x_train, nb_epoch = 10)
+    regressor = Regressor(x_train, nb_epoch = 1000, learning_rate=0.001)
     regressor.fit(x_train, y_train)
     save_regressor(regressor)
 
