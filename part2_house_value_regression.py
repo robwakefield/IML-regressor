@@ -54,7 +54,7 @@ class Regressor():
 
         # Define MSE loss func and Gradient Descent optimizer
         self.loss_fn = nn.MSELoss()
-        self.optim = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=0.9)
+        self.optim = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
         print("NN Model:")
         print(self.model)
@@ -296,7 +296,7 @@ def example_main():
     # This example trains on the whole available dataset. 
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
-    regressor = Regressor(x_train, nb_epoch = 1000)
+    regressor = Regressor(x_train, nb_epoch = 1000, learning_rate=10)
     regressor.fit(x_train, y_train)
     save_regressor(regressor)
 
