@@ -35,6 +35,7 @@ class Regressor():
 
         # Replace this code with your own
         X, _ = self._preprocessor(x, training = True)
+
         self.input_size = X.shape[1]
         self.output_size = 1
         self.hidden_size = 20
@@ -90,21 +91,20 @@ class Regressor():
         # Return preprocessed x and y, return None for y if it was None
         
         # Fill Na values with default value
-        # TODO: Might be better to set to default value than 'forward-fill'
-        x = x.fillna(method='ffill')
+        x = x.fillna(value=0.0)
 
         # Convert ocean_proximity to separate columns
+        ocean_classes = ["<1H OCEAN", "INLAND", "ISLAND", "NEAR BAY", "NEAR OCEAN"]
         lb = LabelBinarizer()
-        lb.fit(x["ocean_proximity"])
-        # TODO: Should we store this in class somewhere?
-        ocean_classes = lb.classes_
+        lb.fit(ocean_classes)
         discretized = pd.DataFrame(lb.transform(x["ocean_proximity"]), columns=ocean_classes, dtype=np.float64)
 
         # Remove ocean_proximity from original DataFrame
         x = x.drop(["ocean_proximity"], axis=1)
 
-        # Mean normalise (columnwise)
-        x = (x - x.mean()) / x.std()
+        # Min-Max normalise (columnwise)
+        # TODO: min and max should be stored in Regressor based on entire dataset
+        x = (x - x.min()) / (x.max() - x.min())
 
         # Merge x and discretized ocean proximities
         merged = pd.merge(x, discretized, left_index=True, right_index=True)
@@ -112,7 +112,8 @@ class Regressor():
         # Convert x to torch.tensor
         t_x = torch.from_numpy(merged.to_numpy()).to(torch.float32)
         
-        # TODO: Normalise x
+        # Ensure data is correct shape
+        assert t_x.shape[1] == 13
 
         if isinstance(y, pd.DataFrame):
             # Fill Na values in y
