@@ -302,7 +302,7 @@ def RegressorHyperParameterSearch(regressor, x_train, y_train):
 
     # Define hyperparameter we can optimise
     param_grid = {
-        'learning_rate': [0.0001, 0.001, 0.01, 0.1, 1, 10],
+        'learning_rate': [0.00001, 0.00005, 0.0001, 0.001, 0.01, 0.1, 1, 10],
     }
 
     # check_estimator(regressor)
@@ -315,6 +315,9 @@ def RegressorHyperParameterSearch(regressor, x_train, y_train):
 
     print('Best Model After Cross Validation')
     print(best_model)
+    
+    best_score = regressor.regressor.score(x_train, y_train)
+    print("Best RMSE:", best_score)
 
     return  # Return the chosen hyper parameters
 
