@@ -7,6 +7,7 @@ from sklearn.preprocessing import LabelBinarizer
 from sklearn.model_selection import cross_val_score, GridSearchCV
 from sklearn.utils.estimator_checks import check_estimator
 from sklearn.utils.validation import check_X_y, check_array
+from collections import OrderedDict
 from torch import nn
 
 class Regressor():
@@ -19,7 +20,7 @@ class Regressor():
                 # Set bias to 0
                 torch.nn.init.zeros_(m.bias)
 
-    def __init__(self, x, nb_epoch = 1000, learning_rate=1e-6):
+    def __init__(self, x, nb_epoch = 100, learning_rate=1e-6, hidden_layers_sizes=[5]):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -42,16 +43,22 @@ class Regressor():
 
         self.input_size = X.shape[1]
         self.output_size = 1
-        self.hidden_size = 20
+        self.hidden_layers_sizes = hidden_layers_sizes
         self.nb_epoch = nb_epoch 
         self.learning_rate = learning_rate
+        print("Model Param:")
+        print(f'epoch: {nb_epoch} learning rate: {learning_rate} hidden_layer: {hidden_layers_sizes}')
         
         # Define NN structure
-        self.model = nn.Sequential(
-            nn.Linear(self.input_size, self.hidden_size),
-            nn.ReLU(),
-            nn.Linear(self.hidden_size, self.output_size),
-        )
+        layers = []
+            
+        # Add no_of_layers hidden layer
+        for i in range(0, len(hidden_layers_sizes)):
+            layers.append((f'layer {i}', nn.Linear(self.input_size, hidden_layers_sizes[i])))
+            layers.append((f'Activation Function {i}',nn.ReLU()))
+
+        layers.append((f'layer {len(hidden_layers_sizes)}', nn.Linear(hidden_layers_sizes[i], self.output_size)))
+        self.model = nn.Sequential(OrderedDict(layers))
 
         # Initialise weights using xavier and set bias to 0
         self.model.apply(self.init_weights)
@@ -160,7 +167,7 @@ class Regressor():
 
             # Compute the loss based on this forward pass.
             loss = self.loss_fn(pred_Y, Y)
-            if self.nb_epoch <= 10 or e % 100 == 0:
+            if self.nb_epoch <= 10 or e % 10 == 0:
                 print(f'Epoch {e}, Loss: {loss.item()}')
 
             # Perform backwards pass to compute gradients of loss with respect to parameters of the model.
@@ -256,24 +263,29 @@ def load_regressor():
     return trained_model
 
 class RegressorAdaptor(BaseEstimator, RegressorMixin):
-    def __init__(self, regressor, x_columns, y_columns, learning_rate=10):
+    def __init__(self, regressor, x_columns, y_columns, learning_rate=10, hidden_layers_sizes=[5]):
         self.regressor = regressor
         self.learning_rate = learning_rate
+        self.hidden_layers_sizes = hidden_layers_sizes
         self.x_columns = x_columns
         self.y_columns = y_columns
+    
+    # Change the inputs to DataFrame (To make compatible with previous code)
+    def npArraytoDataFrame(self, data, columns):
+        return pd.DataFrame(data, columns=columns)
         
     def fit(self, x, y):
-        x = pd.DataFrame(x, columns=self.x_columns)
-        y = pd.DataFrame(y, columns=self.y_columns)
+        x = self.npArraytoDataFrame(x, self.x_columns)
+        y = self.npArraytoDataFrame(y, self.y_columns)
         return self.regressor.fit(x, y)
 
     def predict(self, x):
-        x = pd.DataFrame(x, columns=self.x_columns)
+        x = self.npArraytoDataFrame(x, self.x_columns)
         return self.regressor.predict(x)
 
     def score(self, x, y):
-        x = pd.DataFrame(x, columns=self.x_columns)
-        y = pd.DataFrame(y, columns=self.y_columns)
+        x = self.npArraytoDataFrame(x, self.x_columns)
+        y = self.npArraytoDataFrame(y, self.y_columns)
         return self.regressor.score(x, y)
 
 def RegressorHyperParameterSearch(regressor, x_train, y_train): 
@@ -302,7 +314,8 @@ def RegressorHyperParameterSearch(regressor, x_train, y_train):
 
     # Define hyperparameter we can optimise
     param_grid = {
-        'learning_rate': [0.0001, 0.001, 0.01, 0.1, 1, 10],
+        'learning_rate': [0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10],
+        'hidden_layers_sizes': [[1], [5], [10], [15], [10, 5], [10, 10], [10, 5, 5], [10, 10, 5]],
     }
 
     # check_estimator(regressor)
@@ -312,9 +325,13 @@ def RegressorHyperParameterSearch(regressor, x_train, y_train):
     grid_search.fit(x_train_np, y_train_np)
 
     best_model = grid_search.best_estimator_
+    best_params = grid_search.best_params_
 
     print('Best Model After Cross Validation')
+    print('best_model:')
     print(best_model)
+    print('best_params:')
+    print(best_params)
 
     return  # Return the chosen hyper parameters
 
@@ -341,7 +358,7 @@ def example_main():
     # This example trains on the whole available dataset. 
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
-    regressor = Regressor(x_train, nb_epoch = 1000, learning_rate=10)
+    regressor = Regressor(x_train, nb_epoch = 100, learning_rate=10)
     regressor.fit(x_train, y_train)
     save_regressor(regressor)
 
