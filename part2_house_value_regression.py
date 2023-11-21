@@ -332,6 +332,9 @@ def RegressorHyperParameterSearch(regressor, x_train, y_train):
     print(best_model)
     print('best_params:')
     print(best_params)
+    
+    best_score = regressor.regressor.score(x_train, y_train)
+    print("Best RMSE:", best_score)
 
     return  # Return the chosen hyper parameters
 
