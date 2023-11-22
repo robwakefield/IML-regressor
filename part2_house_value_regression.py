@@ -2,12 +2,25 @@ import torch
 import pickle
 import numpy as np
 import pandas as pd
+from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.preprocessing import LabelBinarizer
+from sklearn.model_selection import cross_val_score, GridSearchCV
+from sklearn.utils.estimator_checks import check_estimator
+from sklearn.utils.validation import check_X_y, check_array
+from collections import OrderedDict
 from torch import nn
 
 class Regressor():
 
-    def __init__(self, x, nb_epoch = 1000, learning_rate=1e-6):
+    def init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            # Init weights using xavier
+            torch.nn.init.xavier_uniform_(m.weight)
+            if m.bias is not None:
+                # Set bias to 0
+                torch.nn.init.zeros_(m.bias)
+
+    def __init__(self, x, nb_epoch = 1000, learning_rate=1e-6, hidden_layers_sizes=[5]):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -27,22 +40,34 @@ class Regressor():
 
         # Replace this code with your own
         X, _ = self._preprocessor(x, training = True)
+
         self.input_size = X.shape[1]
         self.output_size = 1
-        self.hidden_size = 20
+        self.hidden_layers_sizes = hidden_layers_sizes
         self.nb_epoch = nb_epoch 
         self.learning_rate = learning_rate
+        print("init Model Param:")
+        print(f'epoch: {nb_epoch} learning rate: {learning_rate} hidden_layer: {hidden_layers_sizes}')
         
         # Define NN structure
-        self.model = nn.Sequential(
-            nn.Linear(self.input_size, self.hidden_size),
-            nn.ReLU(),
-            nn.Linear(self.hidden_size, self.output_size),
-        )
+        layers = []
+        layers.append((f'layer 0', nn.Linear(self.input_size, hidden_layers_sizes[0])))
+        layers.append((f'Activation Function 0',nn.ReLU()))
+        
+        # Add no_of_layers hidden layer
+        for i in range(0, len(hidden_layers_sizes) - 1):
+            layers.append((f'layer {i + 1}', nn.Linear(self.hidden_layers_sizes[i], hidden_layers_sizes[i + 1])))
+            layers.append((f'Activation Function {i + 1}',nn.ReLU()))
+
+        layers.append((f'layer {len(hidden_layers_sizes)}', nn.Linear(hidden_layers_sizes[len(hidden_layers_sizes) - 1], self.output_size)))
+        self.model = nn.Sequential(OrderedDict(layers))
+
+        # Initialise weights using xavier and set bias to 0
+        self.model.apply(self.init_weights)
 
         # Define MSE loss func and Gradient Descent optimizer
         self.loss_fn = nn.MSELoss()
-        self.optim = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=0.9)
+        self.optim = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
         print("NN Model:")
         print(self.model)
@@ -79,21 +104,24 @@ class Regressor():
         # Return preprocessed x and y, return None for y if it was None
         
         # Fill Na values with default value
-        # TODO: Might be better to set to default value than 'forward-fill'
-        x = x.fillna(method='ffill')
+        x = x.fillna(value=0.0)
 
         # Convert ocean_proximity to separate columns
+        ocean_classes = ["<1H OCEAN", "INLAND", "ISLAND", "NEAR BAY", "NEAR OCEAN"]
         lb = LabelBinarizer()
-        lb.fit(x["ocean_proximity"])
-        # TODO: Should we store this in class somewhere?
-        ocean_classes = lb.classes_
+        lb.fit(ocean_classes)
         discretized = pd.DataFrame(lb.transform(x["ocean_proximity"]), columns=ocean_classes, dtype=np.float64)
 
         # Remove ocean_proximity from original DataFrame
         x = x.drop(["ocean_proximity"], axis=1)
 
-        # Mean normalise (columnwise)
-        x = (x - x.mean()) / x.std()
+        # Calculate min/max of each column for normalisation (only on training data)
+        if training:
+            self.max = x.max()
+            self.min = x.min()
+    
+        # Min-Max normalise (columnwise)
+        x = (x - self.min) / (self.max - self.min)
 
         # Merge x and discretized ocean proximities
         merged = pd.merge(x, discretized, left_index=True, right_index=True)
@@ -101,7 +129,8 @@ class Regressor():
         # Convert x to torch.tensor
         t_x = torch.from_numpy(merged.to_numpy()).to(torch.float32)
         
-        # TODO: Normalise x
+        # Ensure data is correct shape
+        assert t_x.shape[1] == 13
 
         if isinstance(y, pd.DataFrame):
             # Fill Na values in y
@@ -137,6 +166,8 @@ class Regressor():
         #######################################################################
 
         X, Y = self._preprocessor(x, y = y, training = True) # Do not forget
+        print("Fit Model Param:")
+        print(f'epoch: {self.nb_epoch} learning rate: {self.learning_rate} hidden_layer: {self.hidden_layers_sizes}')
         
         for e in range(self.nb_epoch):
             # Perform forward pass though the model given the input.
@@ -209,11 +240,10 @@ class Regressor():
 
         X, Y = self._preprocessor(x, y = y, training = False) # Do not forget
 
-        # TODO: Is there a reason to use predict(x) here?
         pred_Y = self.model(X)
         loss = self.loss_fn(pred_Y, Y)
         
-        return torch.sqrt(loss).item() # Returns sqrt(MSE)
+        return torch.sqrt(loss).item()
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -240,9 +270,35 @@ def load_regressor():
     print("\nLoaded model in part2_model.pickle\n")
     return trained_model
 
+class RegressorAdaptor(BaseEstimator, RegressorMixin):
+    def __init__(self, x_train, x_columns, y_columns, nb_epoch=1000, learning_rate=1000, hidden_layers_sizes=[5]):
+        self.x_train = x_train
+        self.nb_epoch = nb_epoch
+        self.learning_rate = learning_rate
+        self.hidden_layers_sizes = hidden_layers_sizes
+        self.x_columns = x_columns
+        self.y_columns = y_columns
+    
+    # Change the inputs to DataFrame (To make compatible with previous code)
+    def npArraytoDataFrame(self, data, columns):
+        return pd.DataFrame(data, columns=columns)
+        
+    def fit(self, x, y):
+        x = self.npArraytoDataFrame(x, self.x_columns)
+        y = self.npArraytoDataFrame(y, self.y_columns)
+        self.model = Regressor(x, self.nb_epoch, self.learning_rate, self.hidden_layers_sizes)
+        return self.model.fit(x, y)
 
+    def predict(self, x):
+        x = self.npArraytoDataFrame(x, self.x_columns)
+        return self.model.predict(x)
 
-def RegressorHyperParameterSearch(): 
+    def score(self, x, y):
+        x = self.npArraytoDataFrame(x, self.x_columns)
+        y = self.npArraytoDataFrame(y, self.y_columns)
+        return self.model.score(x, y)
+
+def RegressorHyperParameterSearch(x_train, y_train): 
     # Ensure to add whatever inputs you deem necessary to this function
     """
     Performs a hyper-parameter for fine-tuning the regressor implemented 
@@ -259,8 +315,46 @@ def RegressorHyperParameterSearch():
     #######################################################################
     #                       ** START OF YOUR CODE **
     #######################################################################
+    # Create scikit-learn estimator
+    x_columns = x_train.columns
+    y_columns = y_train.columns
 
-    return  # Return the chosen hyper parameters
+    # We are using scikit learn estimator which uses numpy array
+    x_train_np = x_train.to_numpy()
+    y_train_np = y_train.to_numpy()
+
+    regressor = RegressorAdaptor(x_train_np, x_columns, y_columns)
+
+    # Define hyperparameter we can optimise
+    param_grid = {
+        'learning_rate': [0.001, 0.01, 0.1, 1, 10],
+        'hidden_layers_sizes': [[7], [13], [13, 7], [26, 13], [26, 13, 7]],
+        # 'learning_rate': [10],
+        # 'hidden_layers_sizes': [[7], [13]],
+    }
+
+    # check_estimator(regressor)
+
+    grid_search = GridSearchCV(estimator=regressor, param_grid=param_grid, scoring='neg_mean_squared_error', cv=10)
+
+    grid_search.fit(x_train_np, y_train_np)
+
+    print('Results of Cross Validation')
+    print([(grid_search.cv_results_['params'][i], grid_search.cv_results_['mean_test_score'][i])
+            for i in range(0, len(grid_search.cv_results_['params']))])
+    best_model = grid_search.best_estimator_
+    best_params = grid_search.best_params_
+
+    print('Best Model After Cross Validation')
+    print('best_model:')
+    print(best_model)
+    print('best_params:')
+    print(best_params)
+    
+    best_score = best_model.score(x_train_np, y_train_np)
+    print("Best RMSE:", best_score)
+
+    return best_params
 
     #######################################################################
     #                       ** END OF YOUR CODE **
@@ -285,7 +379,18 @@ def example_main():
     # This example trains on the whole available dataset. 
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
-    regressor = Regressor(x_train, nb_epoch = 1000)
+    regressor = Regressor(x_train, nb_epoch = 1000, learning_rate=10)
+    regressor.fit(x_train, y_train)
+    save_regressor(regressor)
+    # Error
+    error = regressor.score(x_train, y_train)
+    print("\nRegressor error: {}\n".format(error))
+
+    # Find the best hyperparameters
+    best_params = RegressorHyperParameterSearch(x_train, y_train)
+
+    # The model with the best hyperparameters
+    regressor = Regressor(x=x_train, **best_params)
     regressor.fit(x_train, y_train)
     save_regressor(regressor)
 
