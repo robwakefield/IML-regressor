@@ -5,8 +5,6 @@ import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.model_selection import GridSearchCV, train_test_split
-from sklearn.utils.estimator_checks import check_estimator
-from sklearn.utils.validation import check_X_y, check_array
 from collections import OrderedDict
 from torch import nn
 
@@ -328,11 +326,12 @@ def RegressorHyperParameterSearch(x_train, y_train):
 
     # Define hyperparameter we can optimise
     param_grid = {
-        'learning_rate': [0.001, 0.01, 0.1, 1, 10],
+        # 'learning_rate': [0.001, 0.01, 0.1, 1, 10],
+        'learning_rate': [0.1, 1, 10],
         'hidden_layers_sizes': [[8], [16], [32], [64],
                                 [16, 8], [32, 16], [64, 32],
                                 [64, 32, 16]],
-        # 'learning_rate': [10],
+        'nb_epoch': [10, 100, 1000, 10000],
         # 'hidden_layers_sizes': [[7], [13]],
     }
 
@@ -345,16 +344,14 @@ def RegressorHyperParameterSearch(x_train, y_train):
     print('Results of Cross Validation')
     print([(grid_search.cv_results_['params'][i], grid_search.cv_results_['mean_test_score'][i])
             for i in range(0, len(grid_search.cv_results_['params']))])
-    best_model = grid_search.best_estimator_
     best_params = grid_search.best_params_
+    best_score = grid_search.best_score_
 
     print('Best Model After Cross Validation')
     print('best_params:')
     print(best_params)
-    
-    best_score = best_model.score(x_train_np, y_train_np)
-    print("Best RMSE:", best_score)
-
+    print('best_score')
+    print(best_score)
     return best_params
 
     #######################################################################
