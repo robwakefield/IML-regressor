@@ -57,7 +57,7 @@ class Regressor():
         # Add no_of_layers hidden layer
         for i in range(0, len(hidden_layers_sizes) - 1):
             layers.append((f'layer {i + 1}', nn.Linear(self.hidden_layers_sizes[i], hidden_layers_sizes[i + 1])))
-            layers.append((f'Activation Function {i}',nn.ReLU()))
+            layers.append((f'Activation Function {i + 1}',nn.ReLU()))
 
         layers.append((f'layer {len(hidden_layers_sizes)}', nn.Linear(hidden_layers_sizes[len(hidden_layers_sizes) - 1], self.output_size)))
         self.model = nn.Sequential(OrderedDict(layers))
