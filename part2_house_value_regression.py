@@ -57,7 +57,7 @@ class Regressor():
         # Add no_of_layers hidden layer
         for i in range(0, len(hidden_layers_sizes) - 1):
             layers.append((f'layer {i + 1}', nn.Linear(self.hidden_layers_sizes[i], hidden_layers_sizes[i + 1])))
-            layers.append((f'Activation Function {i}',nn.ReLU()))
+            layers.append((f'Activation Function {i + 1}',nn.ReLU()))
 
         layers.append((f'layer {len(hidden_layers_sizes)}', nn.Linear(hidden_layers_sizes[len(hidden_layers_sizes) - 1], self.output_size)))
         self.model = nn.Sequential(OrderedDict(layers))
@@ -115,9 +115,13 @@ class Regressor():
         # Remove ocean_proximity from original DataFrame
         x = x.drop(["ocean_proximity"], axis=1)
 
+        # Calculate min/max of each column for normalisation (only on training data)
+        if training:
+            self.max = x.max()
+            self.min = x.min()
+    
         # Min-Max normalise (columnwise)
-        # TODO: min and max should be stored in Regressor based on entire dataset
-        x = (x - x.min()) / (x.max() - x.min())
+        x = (x - self.min) / (self.max - self.min)
 
         # Merge x and discretized ocean proximities
         x = x.reset_index(drop=True)
@@ -382,6 +386,9 @@ def example_main():
     regressor = Regressor(x_train, nb_epoch = 1000, learning_rate=10)
     regressor.fit(x_train, y_train)
     save_regressor(regressor)
+    # Error
+    error = regressor.score(x_train, y_train)
+    print("\nRegressor error: {}\n".format(error))
 
     # Find the best hyperparameters
     best_params = RegressorHyperParameterSearch(x_train, y_train)
