@@ -20,7 +20,7 @@ class Regressor():
                 # Set bias to 0
                 torch.nn.init.zeros_(m.bias)
 
-    def __init__(self, x, nb_epoch = 100, learning_rate=1e-6, hidden_layers_sizes=[5]):
+    def __init__(self, x, nb_epoch = 1000, learning_rate=1e-6, hidden_layers_sizes=[5]):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -46,18 +46,20 @@ class Regressor():
         self.hidden_layers_sizes = hidden_layers_sizes
         self.nb_epoch = nb_epoch 
         self.learning_rate = learning_rate
-        print("Model Param:")
+        print("init Model Param:")
         print(f'epoch: {nb_epoch} learning rate: {learning_rate} hidden_layer: {hidden_layers_sizes}')
         
         # Define NN structure
         layers = []
-            
+        layers.append((f'layer 0', nn.Linear(self.input_size, hidden_layers_sizes[0])))
+        layers.append((f'Activation Function 0',nn.ReLU()))
+        
         # Add no_of_layers hidden layer
-        for i in range(0, len(hidden_layers_sizes)):
-            layers.append((f'layer {i}', nn.Linear(self.input_size, hidden_layers_sizes[i])))
+        for i in range(0, len(hidden_layers_sizes) - 1):
+            layers.append((f'layer {i + 1}', nn.Linear(self.hidden_layers_sizes[i], hidden_layers_sizes[i + 1])))
             layers.append((f'Activation Function {i}',nn.ReLU()))
 
-        layers.append((f'layer {len(hidden_layers_sizes)}', nn.Linear(hidden_layers_sizes[i], self.output_size)))
+        layers.append((f'layer {len(hidden_layers_sizes)}', nn.Linear(hidden_layers_sizes[len(hidden_layers_sizes) - 1], self.output_size)))
         self.model = nn.Sequential(OrderedDict(layers))
 
         # Initialise weights using xavier and set bias to 0
@@ -160,6 +162,8 @@ class Regressor():
         #######################################################################
 
         X, Y = self._preprocessor(x, y = y, training = True) # Do not forget
+        print("Fit Model Param:")
+        print(f'epoch: {self.nb_epoch} learning rate: {self.learning_rate} hidden_layer: {self.hidden_layers_sizes}')
         
         for e in range(self.nb_epoch):
             # Perform forward pass though the model given the input.
@@ -167,7 +171,7 @@ class Regressor():
 
             # Compute the loss based on this forward pass.
             loss = self.loss_fn(pred_Y, Y)
-            if self.nb_epoch <= 10 or e % 10 == 0:
+            if self.nb_epoch <= 10 or e % 100 == 0:
                 print(f'Epoch {e}, Loss: {loss.item()}')
 
             # Perform backwards pass to compute gradients of loss with respect to parameters of the model.
@@ -263,8 +267,9 @@ def load_regressor():
     return trained_model
 
 class RegressorAdaptor(BaseEstimator, RegressorMixin):
-    def __init__(self, regressor, x_columns, y_columns, learning_rate=10, hidden_layers_sizes=[5]):
-        self.regressor = regressor
+    def __init__(self, x_train, x_columns, y_columns, nb_epoch=1000, learning_rate=1000, hidden_layers_sizes=[5]):
+        self.x_train = x_train
+        self.nb_epoch = nb_epoch
         self.learning_rate = learning_rate
         self.hidden_layers_sizes = hidden_layers_sizes
         self.x_columns = x_columns
@@ -277,18 +282,19 @@ class RegressorAdaptor(BaseEstimator, RegressorMixin):
     def fit(self, x, y):
         x = self.npArraytoDataFrame(x, self.x_columns)
         y = self.npArraytoDataFrame(y, self.y_columns)
-        return self.regressor.fit(x, y)
+        self.model = Regressor(x, self.nb_epoch, self.learning_rate, self.hidden_layers_sizes)
+        return self.model.fit(x, y)
 
     def predict(self, x):
         x = self.npArraytoDataFrame(x, self.x_columns)
-        return self.regressor.predict(x)
+        return self.model.predict(x)
 
     def score(self, x, y):
         x = self.npArraytoDataFrame(x, self.x_columns)
         y = self.npArraytoDataFrame(y, self.y_columns)
-        return self.regressor.score(x, y)
+        return self.model.score(x, y)
 
-def RegressorHyperParameterSearch(regressor, x_train, y_train): 
+def RegressorHyperParameterSearch(x_train, y_train): 
     # Ensure to add whatever inputs you deem necessary to this function
     """
     Performs a hyper-parameter for fine-tuning the regressor implemented 
@@ -308,14 +314,19 @@ def RegressorHyperParameterSearch(regressor, x_train, y_train):
     # Create scikit-learn estimator
     x_columns = x_train.columns
     y_columns = y_train.columns
+
+    # We are using scikit learn estimator which uses numpy array
     x_train_np = x_train.to_numpy()
     y_train_np = y_train.to_numpy()
-    regressor = RegressorAdaptor(Regressor(x_train), x_columns, y_columns)
+
+    regressor = RegressorAdaptor(x_train_np, x_columns, y_columns)
 
     # Define hyperparameter we can optimise
     param_grid = {
-        'learning_rate': [0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10],
-        'hidden_layers_sizes': [[1], [5], [10], [15], [10, 5], [10, 10], [10, 5, 5], [10, 10, 5]],
+        'learning_rate': [0.001, 0.01, 0.1, 1, 10],
+        'hidden_layers_sizes': [[7], [13], [13, 7], [26, 13], [26, 13, 7]],
+        # 'learning_rate': [10],
+        # 'hidden_layers_sizes': [[7], [13]],
     }
 
     # check_estimator(regressor)
@@ -324,6 +335,9 @@ def RegressorHyperParameterSearch(regressor, x_train, y_train):
 
     grid_search.fit(x_train_np, y_train_np)
 
+    print('Results of Cross Validation')
+    print([(grid_search.cv_results_['params'][i], grid_search.cv_results_['mean_test_score'][i])
+            for i in range(0, len(grid_search.cv_results_['params']))])
     best_model = grid_search.best_estimator_
     best_params = grid_search.best_params_
 
@@ -333,10 +347,10 @@ def RegressorHyperParameterSearch(regressor, x_train, y_train):
     print('best_params:')
     print(best_params)
     
-    best_score = regressor.regressor.score(x_train, y_train)
+    best_score = best_model.score(x_train_np, y_train_np)
     print("Best RMSE:", best_score)
 
-    return  # Return the chosen hyper parameters
+    return best_params
 
     #######################################################################
     #                       ** END OF YOUR CODE **
@@ -361,11 +375,17 @@ def example_main():
     # This example trains on the whole available dataset. 
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
-    regressor = Regressor(x_train, nb_epoch = 100, learning_rate=10)
+    regressor = Regressor(x_train, nb_epoch = 1000, learning_rate=10)
     regressor.fit(x_train, y_train)
     save_regressor(regressor)
 
-    RegressorHyperParameterSearch(regressor, x_train, y_train)
+    # Find the best hyperparameters
+    best_params = RegressorHyperParameterSearch(x_train, y_train)
+
+    # The model with the best hyperparameters
+    regressor = Regressor(x=x_train, **best_params)
+    regressor.fit(x_train, y_train)
+    save_regressor(regressor)
 
     # Error
     error = regressor.score(x_train, y_train)
