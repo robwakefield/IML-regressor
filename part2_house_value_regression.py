@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.preprocessing import LabelBinarizer
-from sklearn.model_selection import cross_val_score, GridSearchCV
+from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.utils.estimator_checks import check_estimator
 from sklearn.utils.validation import check_X_y, check_array
 from collections import OrderedDict
@@ -324,14 +324,16 @@ def RegressorHyperParameterSearch(x_train, y_train):
     # Define hyperparameter we can optimise
     param_grid = {
         'learning_rate': [0.001, 0.01, 0.1, 1, 10],
-        'hidden_layers_sizes': [[7], [13], [13, 7], [26, 13], [26, 13, 7]],
+        'hidden_layers_sizes': [[8], [16], [32], [64],
+                                [16, 8], [32, 16], [64, 32],
+                                [64, 32, 16]],
         # 'learning_rate': [10],
         # 'hidden_layers_sizes': [[7], [13]],
     }
 
     # check_estimator(regressor)
 
-    grid_search = GridSearchCV(estimator=regressor, param_grid=param_grid, scoring='neg_mean_squared_error', cv=10)
+    grid_search = GridSearchCV(estimator=regressor, param_grid=param_grid, scoring='neg_mean_squared_error', cv=5, n_jobs=-1)
 
     grid_search.fit(x_train_np, y_train_np)
 
@@ -342,8 +344,6 @@ def RegressorHyperParameterSearch(x_train, y_train):
     best_params = grid_search.best_params_
 
     print('Best Model After Cross Validation')
-    print('best_model:')
-    print(best_model)
     print('best_params:')
     print(best_params)
     
