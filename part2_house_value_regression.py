@@ -120,7 +120,8 @@ class Regressor():
         x = (x - x.min()) / (x.max() - x.min())
 
         # Merge x and discretized ocean proximities
-        merged = pd.merge(x, discretized, left_index=True, right_index=True)
+        x = x.reset_index(drop=True)
+        merged = x.join(discretized)
 
         # Convert x to torch.tensor
         t_x = torch.from_numpy(merged.to_numpy()).to(torch.float32)
@@ -368,8 +369,11 @@ def example_main():
     data = pd.read_csv("housing.csv") 
 
     # Splitting input and output
-    x_train = data.loc[:, data.columns != output_label]
-    y_train = data.loc[:, [output_label]]
+    x = data.loc[:, data.columns != output_label]
+    y = data.loc[:, [output_label]]
+
+    # Split training set and test set
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1, random_state=0)
 
     # Training
     # This example trains on the whole available dataset. 
@@ -388,7 +392,7 @@ def example_main():
     save_regressor(regressor)
 
     # Error
-    error = regressor.score(x_train, y_train)
+    error = regressor.score(x_test, y_test)
     print("\nRegressor error: {}\n".format(error))
 
 
