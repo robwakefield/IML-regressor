@@ -4,9 +4,7 @@ import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.preprocessing import LabelBinarizer
-from sklearn.model_selection import cross_val_score, GridSearchCV
-from sklearn.utils.estimator_checks import check_estimator
-from sklearn.utils.validation import check_X_y, check_array
+from sklearn.model_selection import GridSearchCV, train_test_split
 from collections import OrderedDict
 from torch import nn
 
@@ -124,7 +122,8 @@ class Regressor():
         x = (x - self.min) / (self.max - self.min)
 
         # Merge x and discretized ocean proximities
-        merged = pd.merge(x, discretized, left_index=True, right_index=True)
+        x = x.reset_index(drop=True)
+        merged = x.join(discretized)
 
         # Convert x to torch.tensor
         t_x = torch.from_numpy(merged.to_numpy()).to(torch.float32)
@@ -327,33 +326,32 @@ def RegressorHyperParameterSearch(x_train, y_train):
 
     # Define hyperparameter we can optimise
     param_grid = {
-        'learning_rate': [0.001, 0.01, 0.1, 1, 10],
-        'hidden_layers_sizes': [[7], [13], [13, 7], [26, 13], [26, 13, 7]],
-        # 'learning_rate': [10],
+        # 'learning_rate': [0.001, 0.01, 0.1, 1, 10],
+        'learning_rate': [0.1, 1, 10],
+        'hidden_layers_sizes': [[8], [16], [32], [64],
+                                [16, 8], [32, 16], [64, 32],
+                                [64, 32, 16]],
+        'nb_epoch': [10, 100, 1000, 10000],
         # 'hidden_layers_sizes': [[7], [13]],
     }
 
     # check_estimator(regressor)
 
-    grid_search = GridSearchCV(estimator=regressor, param_grid=param_grid, scoring='neg_mean_squared_error', cv=10)
+    grid_search = GridSearchCV(estimator=regressor, param_grid=param_grid, scoring='neg_mean_squared_error', cv=5, n_jobs=-1)
 
     grid_search.fit(x_train_np, y_train_np)
 
     print('Results of Cross Validation')
     print([(grid_search.cv_results_['params'][i], grid_search.cv_results_['mean_test_score'][i])
             for i in range(0, len(grid_search.cv_results_['params']))])
-    best_model = grid_search.best_estimator_
     best_params = grid_search.best_params_
+    best_score = grid_search.best_score_
 
     print('Best Model After Cross Validation')
-    print('best_model:')
-    print(best_model)
     print('best_params:')
     print(best_params)
-    
-    best_score = best_model.score(x_train_np, y_train_np)
-    print("Best RMSE:", best_score)
-
+    print('best_score')
+    print(best_score)
     return best_params
 
     #######################################################################
@@ -372,8 +370,11 @@ def example_main():
     data = pd.read_csv("housing.csv") 
 
     # Splitting input and output
-    x_train = data.loc[:, data.columns != output_label]
-    y_train = data.loc[:, [output_label]]
+    x = data.loc[:, data.columns != output_label]
+    y = data.loc[:, [output_label]]
+
+    # Split training set and test set
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1, random_state=0)
 
     # Training
     # This example trains on the whole available dataset. 
@@ -395,7 +396,7 @@ def example_main():
     save_regressor(regressor)
 
     # Error
-    error = regressor.score(x_train, y_train)
+    error = regressor.score(x_test, y_test)
     print("\nRegressor error: {}\n".format(error))
 
 
