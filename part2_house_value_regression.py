@@ -18,7 +18,7 @@ class Regressor():
                 # Set bias to 0
                 torch.nn.init.zeros_(m.bias)
 
-    def __init__(self, x, nb_epoch = 1000, learning_rate=1e-6, hidden_layers_sizes=[5]):
+    def __init__(self, x, nb_epoch = 1000, learning_rate=1e-6, hidden_layers_sizes=[5], output_file=False):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -48,6 +48,7 @@ class Regressor():
         self.hidden_layers_sizes = hidden_layers_sizes
         self.nb_epoch = nb_epoch 
         self.learning_rate = learning_rate
+        self.output_file = output_file
         print("init Model Param:")
         print(f'epoch: {nb_epoch} learning rate: {learning_rate} hidden_layer: {hidden_layers_sizes}')
         
@@ -175,6 +176,8 @@ class Regressor():
         X, Y = self._preprocessor(x, y = y, training = True) # Do not forget
         print("Fit Model Param:")
         print(f'epoch: {self.nb_epoch} learning rate: {self.learning_rate} hidden_layer: {self.hidden_layers_sizes}')
+
+        losses = []
         
         for e in range(self.nb_epoch):
             # Perform forward pass though the model given the input.
@@ -182,9 +185,9 @@ class Regressor():
 
             # Compute the loss based on this forward pass.
             loss = self.loss_fn(pred_Y, Y)
+            losses.append(loss.item())
             if self.nb_epoch <= 10 or e % 100 == 0:
-                #print(f'Epoch {e}, Loss: {loss.item()}')
-                continue
+                print(f'Epoch {e}, Loss: {loss.item()}')
 
             # Perform backwards pass to compute gradients of loss with respect to parameters of the model.
             self.model.zero_grad()
@@ -196,6 +199,12 @@ class Regressor():
             self.optim.step()
 
             # You are free to implement any additional steps to improve learning (batch-learning, shuffling...).
+
+        # Write losses to csv file
+        if self.output_file:
+            with open('loss.csv', 'w') as f:
+                for i in range(len(losses)):
+                    f.write(str(i)+','+str(losses[i])+'\n')
 
         return self
 
@@ -389,7 +398,7 @@ def example_main():
     # This example trains on the whole available dataset. 
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
-    regressor = Regressor(x_train, nb_epoch = 1000, learning_rate=10)
+    regressor = Regressor(x_train, nb_epoch = 1000, learning_rate=1, hidden_layers_sizes=[64, 32], output_file=True)
     regressor.fit(x_train, y_train)
     save_regressor(regressor)
     # Error
@@ -400,7 +409,7 @@ def example_main():
     best_params = RegressorHyperParameterSearch(x_train, y_train)
 
     # The model with the best hyperparameters
-    regressor = Regressor(x=x_train, **best_params)
+    regressor = Regressor(x=x_train, **best_params, output_file=True)
     regressor.fit(x_train, y_train)
     save_regressor(regressor)
 
