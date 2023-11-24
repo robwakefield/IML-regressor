@@ -324,26 +324,32 @@ def RegressorHyperParameterSearch(x_train, y_train):
 
     regressor = RegressorAdaptor(x_train_np, x_columns, y_columns)
 
-    # Define hyperparameter we can optimise
+
+    # Define hyperparameter candidate we can optimise
     param_grid = {
-        # 'learning_rate': [0.001, 0.01, 0.1, 1, 10],
+        # 'learning_rate': [1, 2],
+        # 'hidden_layers_sizes': [[8], [16]],
+        # 'nb_epoch': [10, 100],
+
         'learning_rate': [0.1, 1, 10],
         'hidden_layers_sizes': [[8], [16], [32], [64],
                                 [16, 8], [32, 16], [64, 32],
                                 [64, 32, 16]],
         'nb_epoch': [10, 100, 1000, 10000],
-        # 'hidden_layers_sizes': [[7], [13]],
     }
-
-    # check_estimator(regressor)
 
     grid_search = GridSearchCV(estimator=regressor, param_grid=param_grid, scoring='neg_mean_squared_error', cv=5, n_jobs=-1)
 
     grid_search.fit(x_train_np, y_train_np)
 
     print('Results of Cross Validation')
-    print([(grid_search.cv_results_['params'][i], grid_search.cv_results_['mean_test_score'][i])
-            for i in range(0, len(grid_search.cv_results_['params']))])
+
+    params_combinations = grid_search.cv_results_['params']
+
+    params_combinations_scores = [(params_combinations[i], grid_search.cv_results_['mean_test_score'][i]) for i in range(0, len(params_combinations))]
+
+    printHyperParamsScores(param_grid, params_combinations_scores)
+
     best_params = grid_search.best_params_
     best_score = grid_search.best_score_
 
@@ -358,7 +364,33 @@ def RegressorHyperParameterSearch(x_train, y_train):
     #                       ** END OF YOUR CODE **
     #######################################################################
 
+def printHyperParamsScores(param_grid, params_combinations_scores):
+    # Output all scores of all hyperparameters combinations
+    params_combinations_scores_df = pd.DataFrame(params_combinations_scores, columns=['Params', 'Score'])
+    params_combinations_scores_df.to_csv('hyperparams_scores/all_hyperparams_scores.csv', index=True)
+    print(params_combinations_scores_df)
 
+    # Output the mean performance aginst the change of one hyperparameter 
+    for param in param_grid.keys():
+        param_scores = []
+        for param_candidate in param_grid[param]:
+            mean_score = sum(score for (combination, score) in params_combinations_scores if (combination[param] == param_candidate))
+            param_scores.append((param_candidate, mean_score))
+        param_scores_df = pd.DataFrame(param_scores, columns=[param, 'Score'])
+        param_scores_df.to_csv(f'hyperparams_scores/{param}_scores.csv')
+        print(param_scores_df)
+
+    # Output the mean performance aginst the change of two hyperparameters
+    related_params = [('hidden_layers_sizes', 'nb_epoch'), ('hidden_layers_sizes', 'learning_rate')]
+    for param_1, param_2 in related_params:
+        param2_scores = []
+        param_combinations = [(p1, p2) for p1 in param_grid[param_1] for p2 in param_grid[param_2]]
+        for param_candidate_1, param_candidate_2 in param_combinations:
+            mean_score = sum(score for (combination, score) in params_combinations_scores if (combination[param_1] == param_candidate_1) and (combination[param_2] == param_candidate_2))
+            param2_scores.append((param_candidate_1, param_candidate_2, mean_score))
+    param2_scores_df = pd.DataFrame(param2_scores, columns=[param_1, param_2, 'Score'])
+    param2_scores_df.to_csv(f'hyperparams_scores/{param_1}_{param_2}_scores.csv')
+    print(param2_scores_df)
 
 def example_main():
 
