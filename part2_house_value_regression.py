@@ -187,7 +187,7 @@ class Regressor():
 
         
         print("Fit Model Param:")
-        print(f'epoch: {self.nb_epoch} learning rate: {self.learning_rate} hidden_layer: {self.hidden_layers_sizes}')
+        print(f'epoch: {self.nb_epoch} learning rate: {self.learning_rate} hidden_layer: {self.hidden_layers_sizes} batch_size: {self.batch_size}')
 
         losses = []
         
@@ -303,11 +303,12 @@ def load_regressor():
     return trained_model
 
 class RegressorAdaptor(BaseEstimator, RegressorMixin):
-    def __init__(self, x_train, x_columns, y_columns, nb_epoch=1000, learning_rate=1000, hidden_layers_sizes=[5]):
+    def __init__(self, x_train, x_columns, y_columns, nb_epoch=1000, learning_rate=1000, hidden_layers_sizes=[5], batch_size=-1):
         self.x_train = x_train
         self.nb_epoch = nb_epoch
         self.learning_rate = learning_rate
         self.hidden_layers_sizes = hidden_layers_sizes
+        self.batch_size = batch_size
         self.x_columns = x_columns
         self.y_columns = y_columns
     
@@ -318,7 +319,7 @@ class RegressorAdaptor(BaseEstimator, RegressorMixin):
     def fit(self, x, y):
         x = self.npArraytoDataFrame(x, self.x_columns)
         y = self.npArraytoDataFrame(y, self.y_columns)
-        self.model = Regressor(x, self.nb_epoch, self.learning_rate, self.hidden_layers_sizes)
+        self.model = Regressor(x, self.nb_epoch, self.learning_rate, self.hidden_layers_sizes, self.batch_size)
         return self.model.fit(x, y)
 
     def predict(self, x):
@@ -359,13 +360,12 @@ def RegressorHyperParameterSearch(x_train, y_train):
 
     # Define hyperparameter we can optimise
     param_grid = {
-        # 'learning_rate': [0.001, 0.01, 0.1, 1, 10],
         'learning_rate': [0.1, 1, 10],
         'hidden_layers_sizes': [[8], [16], [32], [64],
                                 [16, 8], [32, 16], [64, 32],
                                 [64, 32, 16]],
         'nb_epoch': [10, 100, 1000, 10000],
-        # 'hidden_layers_sizes': [[7], [13]],
+        'batch_size': [-1, 5000, 1000, 500]
     }
 
     # check_estimator(regressor)
