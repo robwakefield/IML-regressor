@@ -37,10 +37,6 @@ class Regressor():
         #######################################################################
 
         # Replace this code with your own
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        if torch.backends.mps.is_available() and torch.backends.mps.is_built():
-            self.device = torch.device("mps")
-        print("Using device ", self.device)
         X, _ = self._preprocessor(x, training = True)
 
         self.input_size = X.shape[1]
@@ -65,7 +61,6 @@ class Regressor():
 
         layers.append((f'layer {len(hidden_layers_sizes)}', nn.Linear(hidden_layers_sizes[len(hidden_layers_sizes) - 1], self.output_size)))
         self.model = nn.Sequential(OrderedDict(layers))
-        self.model.to(self.device)
 
         # Initialise weights using xavier and set bias to 0
         self.model.apply(self.init_weights)
@@ -131,10 +126,9 @@ class Regressor():
         # Merge x and discretized ocean proximities
         x = x.reset_index(drop=True)
         merged = x.join(discretized)
-        merged = merged.astype('float32')
 
         # Convert x to torch.tensor
-        t_x = torch.tensor(merged.to_numpy(), device=self.device)
+        t_x = torch.from_numpy(merged.to_numpy()).to(torch.float32)
         
         # Ensure data is correct shape
         assert t_x.shape[1] == 13
@@ -143,11 +137,9 @@ class Regressor():
             # Fill Na values in y
             # TODO: Is 0 the best value to fill here?
             y = y.fillna(value=0.0)
-            y = y.astype('float32')
             
             # Convert y to torch.tensor
-            t_y = torch.tensor(y.to_numpy(), device=self.device)
-            t_y.to(self.device)
+            t_y = torch.from_numpy(y.to_numpy()).to(torch.float32)
 
         return t_x, (t_y if isinstance(y, pd.DataFrame) else None)
 
@@ -244,7 +236,7 @@ class Regressor():
         #######################################################################
 
         X, _ = self._preprocessor(x, training = False) # Do not forget
-        return self.model(X).cpu().detach().numpy()
+        return self.model(X).detach().numpy()
 
         #######################################################################
         #                       ** END OF YOUR CODE **
