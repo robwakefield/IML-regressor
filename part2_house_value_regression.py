@@ -327,10 +327,6 @@ def RegressorHyperParameterSearch(x_train, y_train):
 
     # Define hyperparameter candidate we can optimise
     param_grid = {
-        # 'learning_rate': [1, 2],
-        # 'hidden_layers_sizes': [[8], [16]],
-        # 'nb_epoch': [10, 100],
-
         'learning_rate': [0.1, 1, 10],
         'hidden_layers_sizes': [[8], [16], [32], [64],
                                 [16, 8], [32, 16], [64, 32],
