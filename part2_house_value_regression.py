@@ -5,6 +5,7 @@ import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.utils import gen_batches
 from collections import OrderedDict
 from torch import nn
 
@@ -18,7 +19,7 @@ class Regressor():
                 # Set bias to 0
                 torch.nn.init.zeros_(m.bias)
 
-    def __init__(self, x, nb_epoch = 1000, learning_rate=1e-6, hidden_layers_sizes=[5], output_file=False):
+    def __init__(self, x, nb_epoch = 1000, learning_rate=1e-6, hidden_layers_sizes=[5], batch_size=-1, output_file=False):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -48,6 +49,7 @@ class Regressor():
         self.hidden_layers_sizes = hidden_layers_sizes
         self.nb_epoch = nb_epoch 
         self.learning_rate = learning_rate
+        self.batch_size = batch_size
         self.output_file = output_file
         print("init Model Param:")
         print(f'epoch: {nb_epoch} learning rate: {learning_rate} hidden_layer: {hidden_layers_sizes}')
@@ -174,6 +176,16 @@ class Regressor():
         #######################################################################
 
         X, Y = self._preprocessor(x, y = y, training = True) # Do not forget
+        
+        batches = []
+        if self.batch_size == -1:
+            self.batch_size = X.size(0)
+            batches = [(X, Y)]
+        else: 
+            for i in range(0, X.size(0) - self.batch_size, self.batch_size):
+                batches.append((X[i:i+self.batch_size], Y[i:i+self.batch_size]))
+
+        
         print("Fit Model Param:")
         print(f'epoch: {self.nb_epoch} learning rate: {self.learning_rate} hidden_layer: {self.hidden_layers_sizes}')
 
@@ -185,20 +197,23 @@ class Regressor():
 
             # Compute the loss based on this forward pass.
             loss = self.loss_fn(pred_Y, Y)
-            losses.append(loss.item())
+            losses.append(loss.item())        
             if self.nb_epoch <= 10 or e % 100 == 0:
                 print(f'Epoch {e}, Loss: {loss.item()}')
 
-            # Perform backwards pass to compute gradients of loss with respect to parameters of the model.
-            self.model.zero_grad()
-            loss.backward()
+            for X, Y in batches:
+                # Perform forward pass though the model given the input.
+                pred_Y = self.model(X)
 
-            #TODO: torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                # Compute the loss based on this forward pass.
+                loss = self.loss_fn(pred_Y, Y)
 
-            # Perform one step of gradient descent on the model parameters.
-            self.optim.step()
+                # Perform backwards pass to compute gradients of loss with respect to parameters of the model.
+                self.model.zero_grad()
+                loss.backward()
 
-            # You are free to implement any additional steps to improve learning (batch-learning, shuffling...).
+                # Perform one step of gradient descent on the model parameters.
+                self.optim.step()
 
         # Write losses to csv file
         if self.output_file:
@@ -398,7 +413,7 @@ def example_main():
     # This example trains on the whole available dataset. 
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
-    regressor = Regressor(x_train, nb_epoch = 1000, learning_rate=1, hidden_layers_sizes=[64, 32], output_file=True)
+    regressor = Regressor(x_train, nb_epoch = 1000, learning_rate=1, hidden_layers_sizes=[64, 32], batch_size=500, output_file=True)
     regressor.fit(x_train, y_train)
     save_regressor(regressor)
     # Error
