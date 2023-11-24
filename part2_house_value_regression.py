@@ -18,7 +18,7 @@ class Regressor():
                 # Set bias to 0
                 torch.nn.init.zeros_(m.bias)
 
-    def __init__(self, x, nb_epoch = 1000, learning_rate=1e-6, hidden_layers_sizes=[5], batch_size=-1, output_file=False):
+    def __init__(self, x, nb_epoch = 1000, learning_rate=1, hidden_layers_sizes=[8], batch_size=-1, output_file=False):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -51,7 +51,7 @@ class Regressor():
         self.batch_size = batch_size
         self.output_file = output_file
         print("init Model Param:")
-        print(f'epoch: {nb_epoch} learning rate: {learning_rate} hidden_layer: {hidden_layers_sizes}')
+        print(f'epoch: {nb_epoch} learning rate: {learning_rate} hidden_layer: {hidden_layers_sizes} batch_size: {batch_size}')
         
         # Define NN structure
         layers = []
@@ -178,7 +178,6 @@ class Regressor():
         
         batches = []
         if self.batch_size == -1:
-            self.batch_size = X.size(0)
             batches = [(X, Y)]
         else: 
             for i in range(0, X.size(0) - self.batch_size, self.batch_size):
