@@ -1,3 +1,7 @@
+# Required Packages
+
+For both Part 1 and Part 2 some python packages are requried. To install these packages using pip run the command `pip install -r requirements.txt'
+
 # Part 1
 
 ## Linear Layer
