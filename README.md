@@ -1,6 +1,24 @@
 # Part 1
 
+## Linear Layer
 
+A linear layer is initialised with xavier_init and a bias. It has a simple linear forward pass method, a backward pass method using a gradient with respect to layer output and a parameter update method of gradient descent.
+
+## Activation Function Classes
+
+SigmoidLayer and ReluLayer both have forward pass methods and backward pass methods that returns an output according to their function definitions and derivatives respectively.
+
+## Multi-Layer Network
+
+Layers are initialised depending on the number of features and neurons, and activation functions used. Forward and backward pass methods are implemented according to the functions used. Parameters are updated with one gradient descent step.
+
+## Trainer
+
+The trainer shuffles input then splits and trains with the input using gradient descent, and calculate the loss function of the dataset.
+
+## Preprocessor
+
+The preprocessor applies and reverts normalisation using respective methods.
 
 # Part 2
 
