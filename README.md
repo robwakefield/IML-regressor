@@ -1,5 +1,7 @@
 # Regressor to Predict California House Prices
 
+See [report](ML_regressor_report.pdf) for detailed analysis of hyperparameter tuning
+
 Completed as part of a group coursework (Grade: 100%)
 
 # Required Packages
